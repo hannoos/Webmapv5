@@ -1,0 +1,129 @@
+<!-- CHappyhill - Webmapping V4 - index.html file - Adding layer control to a Leaflet webmap -->
+
+<!doctype html>
+<html>
+<head>
+  <title>My WebMap</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <link rel="stylesheet" href="main.css" />
+</head>
+
+<body>
+  <H1>My WebMap about the WUR Campus - v5 </H1>
+  <p> I tried adding my own data, but they did not show up on the map </p>
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-hash/0.2.1/leaflet-hash.js"></script>
+  <div id="map"></div>
+  <script>
+  //initialize the map
+  const map = L.map('map').setView([51.98526, 5.66365], 16);
+
+  //Create baselayer - tegels
+  const backgroundMap = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+    attribution: '<a href="http://openstreetmap.org">OpenStreetMap</a>contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>',
+    maxZoom: 19 } );
+    // Add base layer to map.
+    backgroundMap.addTo(map);
+
+    // Hash in URL
+    const hash = new L.Hash(map);
+
+    // Create several pop-ups and markers | based on https://leafletjs.com/examples/quick-start/
+    var popup = L.popup() // simple pop-up without symbol
+    .setLatLng([51.98526, 5.66365])
+    .setContent("This is the Forum building")
+    .openOn(map);
+    var GaiaBuilding = L.marker([51.98750, 5.66594]).addTo(map); // Simple marker or 'pin'
+    var AuroraBuilding = L.circle([51.98271, 5.65793], { // Circle shaped marker (one pair of coordinates and a diameter)
+      color: 'red', fillColor: '#f03',
+      fillOpacity: 0.5, radius: 25
+    }).addTo(map);
+    var OrionBuilding = L.polygon([ // polygon which is a geometry defined by list of coordinate-pairs (=points)
+      [51.98537, 5.66681],
+      [51.98501, 5.66700],
+      [51.98480, 5.66651],
+      [51.98502, 5.66603],
+      [51.98537, 5.66621]
+    ]).addTo(map);
+    // Add pop-ups to the just created markers and symbols
+    // for styling of text and inclusion of images or references etc see html documentation; https://www.w3schools.com/html/html_styles.asp and https://www.w3schools.com/html/html_formatting.asp
+    AuroraBuilding.bindPopup("This is the Aurora building <br><a href='https://www.wur.nl/nl/show/Aurora-gebouwnummer-127.htm'>Find here more information about this building.</a><br><br><a href='https://pixabay.com/nl/vectors/docent-studenten-schooljongens-158711/'><img src='https://cdn.pixabay.com/photo/2013/07/13/11/48/teacher-158711_1280.png' alt='Photo from PixaBay' height='100'></a><br><br>  Free image taken from <a href='https://pixabay.com/'>PixaBay</a>");
+    OrionBuilding.bindPopup("<h3 style='font-size:150%;color:blue;'>This is the <i>Orion</i> building.</h3> <br>Have you ever been in <b style='color:red;'><i>The Spot</b></i> already?");
+    GaiaBuilding.bindPopup("<b>Gaia</b><br>Headquarter of the GRS department");
+
+    // Add geometries from a local geojson file | see also; https://leafletjs.com/examples/geojson/
+    // code below is based on https://github.com/NieneB/webmapping_for_beginners_v2/wiki/Leaflet-step-4
+    // create maplayer object to be added to the map (later filled with data from geojson file)
+    var geojsonMarkerOptions = {
+      "color": "#004d00",
+	  "weight": 2.5,
+      "opacity": 0.65
+    };
+    const geojson = L.geoJson(null,{
+      style : geojsonMarkerOptions,
+      pointToLayer: function (feature, latlng) {
+        return L.circleMarker(latlng);
+      },
+      onEachFeature: function (feature, layer) {
+        layer.bindPopup('This is the average cycle speed here: <br> <b>' + feature.properties.SPEED.toString() + ' km/h </b>')},
+      }).addTo(map);
+      fetch("./LocalData/BikeSegments2016_WGS84.geojson") // Fetch the geojson file into the geojson object
+      .then(response => response.json())
+      .then(data => {
+        geojson.addData(data);
+      })
+      //.catch( error => alert("Sorry, the data cannot be found, this is the error: " + error));
+	  
+	 var transportMarkerOptions = {
+      "color": "#000080",
+	  "radius": 2.5,
+	  "fill": "#FFFFFF",
+	  "fillOpacity":0.1
+    };
+    const transport = L.geoJson(null,{
+      style : transportMarkerOptions,
+      pointToLayer: function (feature, latlng) {
+        return L.circleMarker(latlng);
+      },
+      onEachFeature: function (feature, layer) {
+        layer.bindPopup('Public transport stop: <b>' + feature.properties.name + '</b> <br> type = ' + feature.properties.fclass)},
+      }).addTo(map);
+      fetch("./LocalData/transport.geojson") // Fetch the geojson file into the geojson object
+      .then(response => response.json())
+      .then(data => {
+        transport.addData(data);
+      })
+
+      //
+      // Add layer control to the webmap
+      var layerControl = L.control.layers().addTo(map);
+      // Group the popup and markers in one group and add to control as overlay layers (multiple selection possible)
+      var WURcampusBuildings = L.layerGroup([popup, GaiaBuilding, AuroraBuilding, OrionBuilding]).addTo(map);
+      layerControl.addOverlay(WURcampusBuildings, "Important WUR Buildings");
+	  // Add the local geojson dataset as its own map (overlay) layer to the control
+      layerControl.addOverlay(geojson, "Bike Segments 2016");
+      // Add the background map to the control as baselayer (radio button option, one at a time visible)
+      layerControl.addBaseLayer(backgroundMap, "Basemap");
+	  
+	  // Add existing WMS tileLayer to the map and to the layer contral as baselayer
+      // Note; no '.addTo(map)' here to the layer, making them not visible yet at loading the page, but it is available!
+      var HighResImage = L.tileLayer.wms('https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0?', {layers: '2021_orthoHR'});
+      layerControl.addBaseLayer(HighResImage, "7.5 cm Aerial (RGB) Image");
+
+	  var RoadSegments = L.tileLayer.wms('https://geodata.nationaalgeoregister.nl/nl/rws/tn-ro/wms?', {layers: 'TN.RoadTransportNetwork.RoadLink'});
+      layerControl.addBaseLayer(RoadSegments, "RWS Road Segments");
+	  
+	  var OSMtopo = L.tileLayer.wms('http://ows.mundialis.de/services/service?', {layers: 'TOPO-OSM-WMS'});
+      layerControl.addBaseLayer(OSMtopo, "OSM Topo");
+      
+      
+      var IRimage = L.tileLayer.wms('https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0?', {layers: 'Actueel_ortho25IR'});
+      layerControl.addBaseLayer(IRimage, "25 cm InfraRed Image");
+      // Add existing WFS layers
+	
+      // write more code here
+
+    </script>
+    <H2>Created by CHappyhill</H2> <H4>Inspired by <a href="https://leafletjs.com/examples.html">Leaflet Examples</a> and the work of <a href="https://nieneb.nl/online-projects/">Niene Boeijen</a> from This Way Cartography </H4>
+  </body>
+  </html>
